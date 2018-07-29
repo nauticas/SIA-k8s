@@ -1,0 +1,12 @@
+FROM mariadb:10.3
+LABEL Maintainer="Nauticas DevOps Team <info@nauticas.edu>" \
+      Description="MariaDB with Nauticas KRS DB kickstarted."
+
+ENV MYSQL_ROOT_PASSWORD="mysql"
+
+# Copy DB Starter & kickstarter
+COPY mysql.tar.gz /var/lib/mysql/mysql.tar.gz
+COPY config/entrypoint.sh /docker-entrypoint-initdb.d/
+
+EXPOSE 3306
+CMD ["mysqld"]
