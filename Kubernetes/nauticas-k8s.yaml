@@ -1,0 +1,138 @@
+####  Creating Kubernetes Secret Object  ####
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysecret
+type: Opaque
+data:
+  username: cm9vdA==
+  password: bXlzcWw=
+
+---
+
+####  MySQL Service  ####
+apiVersion: v1
+kind: Service
+metadata:
+  name: nauticas-mysql
+  labels:
+    app: nauticas
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: nauticas
+    tier: mysql
+  clusterIP: None
+
+---
+
+####  PersistentVolumeClaim  ####
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  labels:
+    app: wordpress
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+
+---
+
+####  MySQL Deployment  ####
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nauticas-mysql
+  labels:
+    app: nauticas
+spec:
+  selector:
+    matchLabels:
+      app: nauticas
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nauticas
+        tier: mysql
+    spec:
+      containers:
+      - image: d8920ya/nauticas-db:1.0
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysecret
+              key: password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
+
+---
+
+####  Nauticas Service  ####
+apiVersion: v1
+kind: Service
+metadata:
+  name: nauticas-app
+  labels:
+    app: nauticas-app
+spec:
+  ports:
+    - port: 80
+  selector:
+    app: nauticas-app
+    tier: frontend
+  type: LoadBalancer
+
+---
+
+####  Nauticas Deployment  ####
+kind: Deployment
+metadata:
+  name: nauticas
+  labels:
+    app: nauticas
+spec:
+  selector:
+    matchLabels:
+      app: nauticas
+      tier: frontend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: nauticas
+        tier: frontend
+    spec:
+      containers:
+      - image: d8920ya/nauticas-app:1.0
+        name: nauticas
+        env:
+        - name: DB_HOST
+          value: nauticas-mysql
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-pass
+              key: password
+        ports:
+        - containerPort: 80
+          name: nauticas
+
